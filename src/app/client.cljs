@@ -4,7 +4,7 @@
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.dom :as dom]))
 
-(defsc Sample [this {:keys [:id] :as props}]
+(defsc Sample [this props]
   {}
   (dom/div "Hello World"))
 
@@ -12,3 +12,5 @@
 
 (defn ^:export init []
   (app/mount! APP Sample "app"))
+
+
