@@ -1,0 +1,6 @@
+.shadow-cljs
+node_modules
+resources/public/js
+.cpcache
+.idea
+target
