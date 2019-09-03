@@ -7,7 +7,6 @@
                    :output-dir "resources/public/js/main"
                    :asset-path "/js/main"
 
-                   :modules    {:main {:init-fn app.client/init
-                                       :entries [app.client]}}
+                   :modules    {:main {:init-fn app.client/init}}
                    :devtools   {:after-load app.client/init
                                 :preloads   [com.fulcrologic.fulcro.inspect.preload]}}}}
