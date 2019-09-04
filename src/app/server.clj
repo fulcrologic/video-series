@@ -1,5 +1,7 @@
 (ns app.server
   (:require
+    [app.model.car :as car]
+    [app.model.person :as person]
     [clojure.core.async :as async]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     [com.fulcrologic.fulcro.server.api-middleware :as fmw :refer [not-found-handler wrap-api]]
@@ -30,7 +32,7 @@
      :list/items (into []
                    (sort-by :item/label (vals @item-db)))})
 
-(def my-resolvers [])
+(def my-resolvers [car/car-resolver person/person-resolver])
 
 ;; setup for a given connect system
 (def parser
