@@ -1,11 +1,10 @@
 (ns app.client
   (:require
-    ["react-number-format" :as NumberFormat]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.dom :as dom :refer [div ul li h3 label]]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
-    [com.fulcrologic.fulcro.algorithms.react-interop :as interop]
+    [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
     [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]))
 
@@ -50,35 +49,51 @@
 
 (def ui-person (comp/factory Person {:keyfn :person/id}))
 
-(defsc PersonList [this {:person-list/keys [people] :as props}]
+(defsc PersonList [this {:person-list/keys [people]}]
   {:query         [{:person-list/people (comp/get-query Person)}]
-   :ident         (fn [_ _] [:component/id ::person-list])
-   :initial-state {:person-list/people [{:id 1 :name "Bob"}
-                                        {:id 2 :name "Sally"}]}}
-  (dom/div
-    (h3 "People")
+   :ident         (fn [] [:component/id ::person-list])
+   :initial-state {:person-list/people [{:id 99 :name "Joe"}]}}
+  (dom/ul
     (map ui-person people)))
 
 (def ui-person-list (comp/factory PersonList))
 
-(defsc Sample [this {:root/keys [people]}]
-  {:query         [{:root/people (comp/get-query PersonList)}]
-   :initial-state {:root/people {}}}
-  (div
-    (when people
-      (ui-person-list people))))
+(defsc Sample [this {:root/keys [list]}]
+  {:query         [{:root/list (comp/get-query PersonList)}]
+   :initial-state {:root/list {}}}
+  (dom/div
+    (dom/h3 "Application")
+    (ui-person-list list)))
 
 (defonce APP (app/fulcro-app))
 
 (defn ^:export init []
   (app/mount! APP Sample "app"))
 
+(defn get-components-that-query-for-a-prop
+  [prop]
+  (reduce
+    (fn [mounted-instances cls]
+      (concat mounted-instances
+        (comp/class->all APP (comp/registry-key->class cls))))
+    []
+    (comp/prop->classes APP prop)))
+
 (comment
   (comp/component-options Person)
 
   (comp/transact! APP [(make-older {:person/id 1})])
 
-  (app/current-state APP)
+  (map
+    comp/get-ident
+   (get-components-that-query-for-a-prop :person/name))
+
+  (let [state           (app/current-state APP)
+        component-query (comp/get-query Person)
+        component-ident [:person/id 99]
+        starting-entity (get-in state component-ident)]
+    (fdn/db->tree component-query starting-entity state)
+    )
 
   (merge/merge-component! APP Person {:person/id 1 :person/age 20})
 
