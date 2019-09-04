@@ -9,3 +9,4 @@ Tags of interest for the files at the end of:
 * `normalization` : The normalization video
 * `initial-state` : The initial state/mutations video.
 * `dom+react` : The components, dom, and react video.
+* `how-rendering-works` : The How Rendering Works video.
