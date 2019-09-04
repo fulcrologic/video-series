@@ -7,7 +7,6 @@
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
     [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]))
 
-
 (defsc Car [this {:car/keys [id model] :as props}]
   {:query         [:car/id :car/model]
    :ident         :car/id
@@ -17,10 +16,6 @@
     "Model " model))
 
 (def ui-car (comp/factory Car {:keyfn :car/id}))
-
-(defmutation make-older [{:person/keys [id]}]
-  (action [{:keys [state]}]
-    (swap! state update-in [:person/id id :person/age] inc)))
 
 (defsc Person [this {:person/keys [id name age cars] :as props}]
   {:query         [:person/id :person/name :person/age {:person/cars (comp/get-query Car)}]
@@ -34,7 +29,6 @@
   (dom/div
     (dom/div "Name: " name)
     (dom/div "Age: " age)
-    (dom/button {:onClick #(comp/transact! this [(make-older {:person/id id})])} "Make older")
     (dom/h3 "Cars")
     (dom/ul
       (map ui-car cars))))
