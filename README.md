@@ -20,7 +20,7 @@ follows:
 git clone https://github.com/fulcrologic/video-series.git
 ```
 
-2. Check out the tag
+2. Check out the tag you are interested in working against.
 
 ```
 git checkout dom+react
