@@ -12,7 +12,7 @@
          ::model "F-150"}}))
 
 #?(:clj
-   (pc/defresolver car-resolver [env {:car/keys [id]}]
+   (pc/defresolver car-resolver [env {::keys [id]}]
      {::pc/input  #{::id}
       ::pc/output [::id ::make ::model]}
      (get cars id)))

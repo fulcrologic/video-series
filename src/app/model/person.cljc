@@ -1,6 +1,17 @@
 (ns app.model.person
   (:require
-    [com.wsscode.pathom.connect :as pc]))
+    [com.wsscode.pathom.connect :as pc]
+    [taoensso.timbre :as log]
+    [clojure.spec.alpha :as s]))
+
+(s/def ::id int?)
+(s/def ::name string?)
+(s/def ::age pos-int?)
+
+(s/def :app.model/person
+  (s/keys
+    :req [::id ::name ::age]
+    :opt [::cars]))
 
 #?(:clj
    (def people
@@ -14,7 +25,7 @@
          ::cars #{1}}}))
 
 #?(:clj
-   (pc/defresolver person-resolver [env {:person/keys [id]}]
+   (pc/defresolver person-resolver [env {::keys [id]}]
      {::pc/input  #{::id}
       ::pc/output [::name {::cars [:app.model.car/id]}]}
      (let [person (-> people
@@ -25,4 +36,17 @@
        person)))
 
 #?(:clj
-   (def resolvers [person-resolver]))
+   (pc/defresolver all-people-resolver [env {::keys [id]}]
+     {::pc/output [{:all-people [::id]}]}
+     {:all-people
+      (mapv (fn [i] {::id i}) (keys people))}))
+
+#?(:clj
+   (pc/defmutation make-older [env {::keys [id]}]
+     {::pc/params [::id]
+      ::pc/output []}
+     {}))
+
+
+#?(:clj
+   (def resolvers [person-resolver all-people-resolver make-older]))

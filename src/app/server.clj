@@ -16,23 +16,7 @@
     [clojure.tools.namespace.repl :as tools-ns]
     [com.fulcrologic.fulcro.algorithms.tempid :as tempid]))
 
-#_(pc/defmutation todo-delete-item [env {:keys [id list-id]}]
-    {::pc/params [:list-id :id]
-     ::pc/output []}
-    (log/info "Deleted item" id)
-    (swap! item-db dissoc id)
-    {})
-
-#_(pc/defresolver list-resolver [env params]
-    {::pc/input  #{:list/id}
-     ::pc/output [:list/title {:list/items [:item/id]}]}
-    ;; normally you'd pull the person from the db, and satisfy the listed
-    ;; outputs. For demo, we just always return the same person details.
-    {:list/title "The List"
-     :list/items (into []
-                   (sort-by :item/label (vals @item-db)))})
-
-(def my-resolvers [car/car-resolver person/person-resolver])
+(def my-resolvers [car/resolvers person/resolvers])
 
 ;; setup for a given connect system
 (def parser
