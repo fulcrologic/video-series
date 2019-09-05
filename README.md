@@ -10,6 +10,7 @@ Tags of interest for the files at the end of:
 * `initial-state` : The initial state/mutations video.
 * `dom+react` : The components, dom, and react video.
 * `how-rendering-works` : The How Rendering Works video.
+* `full-stack-1` : The first full-stack video.
 
 If you are relatively new to Git, you would access these as 
 follows:
