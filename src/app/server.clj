@@ -3,18 +3,12 @@
     [app.model.car :as car]
     [app.model.person :as person]
     [clojure.core.async :as async]
-    [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     [com.fulcrologic.fulcro.server.api-middleware :as fmw :refer [not-found-handler wrap-api]]
     [com.wsscode.pathom.connect :as pc]
     [com.wsscode.pathom.core :as p]
-    [org.httpkit.server :as http]
     [ring.middleware.content-type :refer [wrap-content-type]]
     [ring.middleware.not-modified :refer [wrap-not-modified]]
-    [ring.middleware.resource :refer [wrap-resource]]
-    [ring.util.response :refer [response file-response resource-response]]
-    [taoensso.timbre :as log]
-    [clojure.tools.namespace.repl :as tools-ns]
-    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]))
+    [ring.middleware.resource :refer [wrap-resource]]))
 
 (def my-resolvers [car/resolvers person/resolvers])
 

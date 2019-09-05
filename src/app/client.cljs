@@ -1,32 +1,26 @@
 (ns app.client
   (:require
+    [app.model.person :refer [make-older]]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.dom :as dom :refer [div ul li h3 label]]
     [com.fulcrologic.fulcro.networking.http-remote :as http]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
-    [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]))
+    [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
+    [com.fulcrologic.fulcro.data-fetch :as df]))
 
 (defsc Car [this {:car/keys [id model] :as props}]
-  {:query         [:car/id :car/model]
-   :ident         :car/id
-   :initial-state {:car/id    :param/id
-                   :car/model :param/model}}
+  {:query [:car/id :car/model]
+   :ident :car/id}
   (dom/div
     "Model " model))
 
 (def ui-car (comp/factory Car {:keyfn :car/id}))
 
 (defsc Person [this {:person/keys [id name age cars] :as props}]
-  {:query         [:person/id :person/name :person/age {:person/cars (comp/get-query Car)}]
-   :ident         :person/id
-   :initial-state {:person/id   :param/id
-                   :person/name :param/name
-                   :person/age  20
-                   :person/cars [{:id 40 :model "Leaf"}
-                                 {:id 41 :model "Escort"}
-                                 {:id 42 :model "Sienna"}]}}
+  {:query [:person/id :person/name :person/age {:person/cars (comp/get-query Car)}]
+   :ident :person/id}
   (let [onClick (comp/get-state this :onClick)]
     (div :.ui.segment
       (div :.ui.form
@@ -38,7 +32,7 @@
           age)
         (dom/button :.ui.button {:onClick (fn []
                                             (comp/transact! this
-                                              `[(make-older ~{:person/id id})]
+                                              [(make-older {:person/id id})]
                                               {:refresh [:person-list/people]}))}
           "Make Older")
         (h3 {} "Cars")
@@ -50,8 +44,7 @@
 (defsc PersonList [this {:person-list/keys [people]}]
   {:query         [{:person-list/people (comp/get-query Person)}]
    :ident         (fn [] [:component/id ::person-list])
-   :initial-state {:person-list/people [{:id 1 :name "Bob"}
-                                        {:id 2 :name "Sally"}]}}
+   :initial-state {:person-list/people []}}
   (let [cnt (reduce
               (fn [c {:person/keys [age]}]
                 (if (> age 30)
@@ -74,7 +67,10 @@
     (dom/h3 "Application")
     (ui-person-list list)))
 
-(defonce APP (app/fulcro-app {:remotes {:remote (http/fulcro-http-remote {})}}))
+(defonce APP (app/fulcro-app {:remotes          {:remote (http/fulcro-http-remote {})}
+                              :client-did-mount (fn [app]
+                                                  (df/load! app :all-people Person
+                                                    {:target [:component/id ::person-list :person-list/people]}))}))
 
 (defn ^:export init []
   (app/mount! APP Root "app"))
