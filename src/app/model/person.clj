@@ -41,7 +41,7 @@
   {::pc/params [:person/id]
    ::pc/output []}
   (swap! people update-in [id :person/age] inc)
-  {})
+  {:result 42})
 
 (pc/defmutation select-person [env {:person/keys [id]}]
   {::pc/params [:person/id]}

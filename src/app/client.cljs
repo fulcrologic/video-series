@@ -8,7 +8,7 @@
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
     [com.fulcrologic.fulcro.data-fetch :as df]))
 
-(defsc Car [this {:car/keys [id model] :as props}]
+(defsc Car [this {:car/keys [model]}]
   {:query [:car/id :car/model]
    :ident :car/id}
   (div
@@ -16,7 +16,7 @@
 
 (def ui-car (comp/factory Car {:keyfn :car/id}))
 
-(defsc PersonDetail [this {:person/keys [id name age cars] :as props}]
+(defsc PersonDetail [this {:person/keys [id name age cars]}]
   {:query [:person/id :person/name :person/age {:person/cars (comp/get-query Car)}]
    :ident :person/id}
   (let [onClick (comp/get-state this :onClick)]
@@ -53,7 +53,7 @@
 
 (def ui-person-list-item (comp/factory PersonListItem {:keyfn :person/id}))
 
-(defsc PersonList [this {:person-list/keys [people]}]
+(defsc PersonList [_ {:person-list/keys [people]}]
   {:query         [{:person-list/people (comp/get-query PersonListItem)}]
    :ident         (fn [] [:component/id :person-list])
    :initial-state {:person-list/people []}}
@@ -77,7 +77,7 @@
 
 (def ui-person-picker (comp/factory PersonPicker {:keyfn :person-picker/people}))
 
-(defsc Root [this {:root/keys [person-picker]}]
+(defsc Root [_ {:root/keys [person-picker]}]
   {:query         [{:root/person-picker (comp/get-query PersonPicker)}]
    :initial-state {:root/person-picker {}}}
   (div :.ui.container.segment

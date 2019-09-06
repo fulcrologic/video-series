@@ -11,6 +11,8 @@
 (defmutation make-older [{:person/keys [id] :as params}]
   (action [{:keys [state]}]
     (swap! state update-in (person-path id :person/age) inc))
+  (ok-action [env] (js/console.log "OK"))
+  (error-action [env] (js/alert "BAD!"))
   (remote [env] true))
 
 (defmutation select-person [{:person/keys [id] :as params}]
