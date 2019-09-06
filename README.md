@@ -12,6 +12,7 @@ Tags of interest for the files at the end of:
 * `how-rendering-works` : The How Rendering Works video.
 * `full-stack-1` : The first full-stack video.
 * `full-stack-over-time` : Parts 7 and 8.
+* `tx-processing` : Transaction fundamentals video.
 
 If you are relatively new to Git, you would access these as 
 follows:
