@@ -1,79 +1,96 @@
 (ns app.client
   (:require
-    [app.model.person :refer [make-older]]
+    [app.model.person :refer [make-older select-person picker-path]]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-    [com.fulcrologic.fulcro.dom :as dom :refer [div ul li h3 label]]
+    [com.fulcrologic.fulcro.dom :as dom :refer [div ul li button h3 label a]]
     [com.fulcrologic.fulcro.networking.http-remote :as http]
-    [com.fulcrologic.fulcro.algorithms.merge :as merge]
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
-    [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
     [com.fulcrologic.fulcro.data-fetch :as df]))
 
 (defsc Car [this {:car/keys [id model] :as props}]
   {:query [:car/id :car/model]
    :ident :car/id}
-  (dom/div
+  (div
     "Model " model))
 
 (def ui-car (comp/factory Car {:keyfn :car/id}))
 
-(defsc Person [this {:person/keys [id name age cars] :as props}]
+(defsc PersonDetail [this {:person/keys [id name age cars] :as props}]
   {:query [:person/id :person/name :person/age {:person/cars (comp/get-query Car)}]
    :ident :person/id}
   (let [onClick (comp/get-state this :onClick)]
     (div :.ui.segment
-      (div :.ui.form
-        (div :.field
-          (label {:onClick onClick} "Name: ")
-          name)
-        (div :.field
-          (label "Age: ")
-          age)
-        (dom/button :.ui.button {:onClick (fn []
-                                            (comp/transact! this
-                                              [(make-older {:person/id id})]
-                                              {:refresh [:person-list/people]}))}
-          "Make Older")
-        (h3 {} "Cars")
-        (ul {}
-          (map ui-car cars))))))
+      (h3 :.ui.header "Selected Person")
+      (when id
+        (div :.ui.form
+          (div :.field
+            (label {:onClick onClick} "Name: ")
+            name)
+          (div :.field
+            (label "Age: ")
+            age)
+          (button :.ui.button {:onClick (fn []
+                                          (comp/transact! this
+                                            [(make-older {:person/id id})]
+                                            {:refresh [:person-list/people]}))}
+            "Make Older")
+          (h3 {} "Cars")
+          (ul {}
+            (map ui-car cars)))))))
 
-(def ui-person (comp/factory Person {:keyfn :person/id}))
+(def ui-person-detail (comp/factory PersonDetail {:keyfn :person/id}))
+
+(defsc PersonListItem [this {:person/keys [id name]}]
+  {:query [:person/id :person/name]
+   :ident :person/id}
+  (li :.item
+    (a {:href    "#"
+        :onClick (fn []
+                   (df/load! this [:person/id id] PersonDetail
+                     {:target (picker-path :person-picker/selected-person)}))}
+      name)))
+
+(def ui-person-list-item (comp/factory PersonListItem {:keyfn :person/id}))
 
 (defsc PersonList [this {:person-list/keys [people]}]
-  {:query         [{:person-list/people (comp/get-query Person)}]
-   :ident         (fn [] [:component/id ::person-list])
+  {:query         [{:person-list/people (comp/get-query PersonListItem)}]
+   :ident         (fn [] [:component/id :person-list])
    :initial-state {:person-list/people []}}
-  (let [cnt (reduce
-              (fn [c {:person/keys [age]}]
-                (if (> age 30)
-                  (inc c)
-                  c))
-              0
-              people)]
-    (div :.ui.segment
-      (h3 :.ui.header "People")
-      (div "Over 30: " cnt)
-      (dom/ul
-        (map ui-person people)))))
+  (div :.ui.segment
+    (h3 :.ui.header "People")
+    (ul
+      (map ui-person-list-item people))))
 
 (def ui-person-list (comp/factory PersonList))
 
-(defsc Root [this {:root/keys [list]}]
-  {:query         [{:root/list (comp/get-query PersonList)}]
-   :initial-state {:root/list {}}}
-  (dom/div
-    (dom/h3 "Application")
-    (ui-person-list list)))
+(defsc PersonPicker [this {:person-picker/keys [list selected-person]}]
+  {:query         [{:person-picker/list (comp/get-query PersonList)}
+                   {:person-picker/selected-person (comp/get-query PersonDetail)}]
+   :initial-state {:person-picker/list {}}
+   :ident         (fn [] [:component/id :person-picker])}
+  (div :.ui.two.column.container.grid
+    (div :.column
+      (ui-person-list list))
+    (div :.column
+      (ui-person-detail selected-person))))
+
+(def ui-person-picker (comp/factory PersonPicker {:keyfn :person-picker/people}))
+
+(defsc Root [this {:root/keys [person-picker]}]
+  {:query         [{:root/person-picker (comp/get-query PersonPicker)}]
+   :initial-state {:root/person-picker {}}}
+  (div :.ui.container.segment
+    (h3 "Application")
+    (ui-person-picker person-picker)))
 
 (defonce APP (app/fulcro-app {:remotes          {:remote (http/fulcro-http-remote {})}
                               :client-did-mount (fn [app]
-                                                  (df/load! app :all-people Person
-                                                    {:target [:component/id ::person-list :person-list/people]}))}))
+                                                  (df/load! app :all-people PersonListItem
+                                                    {:target [:component/id :person-list :person-list/people]}))}))
 
 (defn ^:export init []
   (app/mount! APP Root "app"))
 
 (comment
-  )
+  (df/load! APP [:person/id 1] PersonDetail))
