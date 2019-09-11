@@ -55,7 +55,6 @@
         xform         (or value-xform identity)]
     (td
       (input-factory (cond-> {:value    (xform value)
-                              :onBlur   (fn [] (comp/transact! this [(fs/mark-complete! {:field field}) :item-list/all-items]))
                               :onChange (fn [evt] (when onChange
                                                     (onChange evt)))}
                        type (assoc :type type)))
@@ -122,8 +121,6 @@
     (tfoot (tr (th {:colSpan 5}
                  (button :.ui.primary.icon.button
                    {:onClick (fn []
-                               #_(comp/transact! this [(item/add-new-item {:item/id (tempid/tempid)})])
-                               ;; OR
                                (merge/merge-component! this ItemListItem
                                  {:ui/new?       true
                                   :item/id       (tempid/tempid)

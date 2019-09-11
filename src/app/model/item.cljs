@@ -58,7 +58,6 @@
     (swap! state assoc-in [:item/id id :ui/saving?] true))
   (remote [env] true)
   (ok-action [{:keys [state]}]
-    (js/console.log "OK" id)
     (swap! state (fn [s]
                    (-> s
                      (update-in [:item/id id] assoc :ui/new? false :ui/saving? false)
@@ -75,9 +74,9 @@
   (action [{:keys [app state]}]
     (let [state-map       @state
           ident           [:item/id id]
-          ItemListItem    (comp/registry-key->class :app.client/ItemListItem)
           completed-state (fs/mark-complete* state-map ident)
           item            (get-in completed-state ident)
+          ItemListItem    (comp/registry-key->class :app.client/ItemListItem)
           item-props      (fdn/db->tree (comp/get-query ItemListItem) item completed-state)
           valid?          (= :valid (item-validator item-props))]
       (if valid?
