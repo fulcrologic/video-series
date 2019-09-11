@@ -35,7 +35,7 @@
                :displayType       (if editing? "input" "text")}]
     (ui-number-format attrs)))
 
-(def ui-editable-money-input (comp/factory EditableMoneyInput {:keyfn :id}))
+(def ui-editable-money-input (comp/factory EditableMoneyInput))
 
 (defsc ItemListItem [this {:item/keys [id title in-stock price] :as props}]
   {:query [:item/id :item/title :item/in-stock :item/price]
@@ -45,8 +45,7 @@
     (td (input {:value    in-stock
                 :type     "number"
                 :onChange (fn [evt]
-                            (js/console.log (type (evt/target-value evt)))
-                            (m/set-value! this :item/in-stock (evt/target-value evt)))}))
+                            (m/set-integer! this :item/in-stock :event evt))}))
     (td (ui-editable-money-input {:value    price
                                   :onChange (fn [v]
                                               (comp/transact! this [(item/set-item-price {:item/id id :item/price v})]))}))))
@@ -82,3 +81,5 @@
 
 (comment
   (df/load! APP [:person/id 1] PersonDetail))
+
+
