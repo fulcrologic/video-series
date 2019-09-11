@@ -1,6 +1,7 @@
 (ns app.model.category
   (:require
-    [com.wsscode.pathom.connect :as pc]))
+    [com.wsscode.pathom.connect :as pc]
+    [clojure.set :as set]))
 
 (def categories (atom {1 {:category/id   1
                           :category/name "Tools"}
@@ -16,6 +17,13 @@
   {::pc/output [{:category/all-categories [:category/id]}]}
   {:category/all-categories (->> categories deref vals (sort-by :category/id) vec)})
 
+(pc/defresolver all-categories-options [_ _]
+  {::pc/output [{:category/category-options [:text :value]}]}
+  {:category/category-options
+   (into []
+     (map #(set/rename-keys % {:category/id :value :category/name :text}))
+     (->> categories deref vals (sort-by :category/name)))})
+
 (pc/defmutation update-category [env {:category/keys [id name]}]
   {::pc/params [:item/id :item/price]
    ::pc/output [:item/id]}
@@ -24,4 +32,4 @@
   (swap! categories assoc-in [id :category/name] name)
   {:category/id id})
 
-(def resolvers [category-resolver all-categories-resolver update-category])
+(def resolvers [category-resolver all-categories-resolver all-categories-options update-category])

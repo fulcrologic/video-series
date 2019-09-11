@@ -1,9 +1,10 @@
 {:paths   ["src" "resources"]
 
- :deps    {com.fulcrologic/fulcro {:mvn/version "3.0.0-beta-15"}
-           ring/ring-core         {:mvn/version "1.7.1"}
-           http-kit               {:mvn/version "2.3.0"}
-           com.wsscode/pathom     {:mvn/version "2.2.24"}}
+ :deps    {com.fulcrologic/fulcro              {:mvn/version "3.0.0-beta-15"}
+           com.fulcrologic/semantic-ui-wrapper {:mvn/version "1.0.0"}
+           ring/ring-core                      {:mvn/version "1.7.1"}
+           http-kit                            {:mvn/version "2.3.0"}
+           com.wsscode/pathom                  {:mvn/version "2.2.24"}}
 
  :aliases {:dev {:extra-paths ["dev"]
                  :extra-deps  {org.clojure/clojurescript   {:mvn/version "1.10.520"}
