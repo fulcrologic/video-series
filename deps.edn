@@ -3,6 +3,8 @@
  :deps    {com.fulcrologic/fulcro {:mvn/version "3.0.0-beta-15"}
            ring/ring-core         {:mvn/version "1.7.1"}
            http-kit               {:mvn/version "2.3.0"}
+           org.clojure/java.jdbc  {:mvn/version "0.7.9"}
+           com.h2database/h2      {:mvn/version "1.4.199"}
            com.wsscode/pathom     {:mvn/version "2.2.24"}}
 
  :aliases {:dev {:extra-paths ["dev"]

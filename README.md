@@ -15,6 +15,7 @@ Tags of interest for the files at the end of:
 * `tx-processing` : Transaction fundamentals video.
 * `forms-part-1` : Part 10, Form inputs and state.
 * `forms-part-2` : Part 11, Form state tracking support.
+* `forms-part-3` : Part 12
 
 If you are relatively new to Git, you would access these as 
 follows:
