@@ -2,17 +2,24 @@
   (:require [com.wsscode.pathom.connect :as pc]))
 
 (def items (atom {1 {:item/id       1
-                     :item/title    "A thing"
+                     :item/title    "Lettuce"
                      :item/in-stock 3
-                     :item/price    1022.33M}}))
+                     :item/category {:category/id 2}
+                     :item/price    2.49M
+                     }
+                  2 {:item/id       2
+                     :item/title    "Wrench"
+                     :item/in-stock 9
+                     :item/category {:category/id 1}
+                     :item/price    23.99M}}))
 
 (pc/defresolver item-resolver [env {:item/keys [id]}]
   {::pc/input  #{:item/id}
-   ::pc/output [:item/title :item/in-stock :item/price]}
+   ::pc/output [:item/title :item/in-stock :item/price {:item/category [:category/id]}]}
   (get @items id))
 
 (pc/defresolver all-items-resolver [_ _]
-  {::pc/output [:item/all-items]}
+  {::pc/output [{:item/all-items [:item/id]}]}
   {:item/all-items (->> items deref vals (sort-by :item/id) vec)})
 
 (pc/defmutation set-item-price [env {:item/keys [id price]}]

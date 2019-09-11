@@ -5,11 +5,12 @@
     [com.wsscode.pathom.connect :as pc]
     [com.wsscode.pathom.core :as p]
     [app.model.item :as item]
+    [app.model.category :as category]
     [ring.middleware.content-type :refer [wrap-content-type]]
     [ring.middleware.not-modified :refer [wrap-not-modified]]
     [ring.middleware.resource :refer [wrap-resource]]))
 
-(def my-resolvers [item/resolvers])
+(def my-resolvers [item/resolvers category/resolvers])
 
 ;; setup for a given connect system
 (def parser
