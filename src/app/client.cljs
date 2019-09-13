@@ -18,9 +18,9 @@
     [com.fulcrologic.fulcro.algorithms.form-state :as fs]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
     [clojure.set :as set]
-    [taoensso.timbre :as log]
     [com.fulcrologic.fulcro.rendering.keyframe-render :as kr]
-    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]))
+    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
+    [taoensso.timbre :as log]))
 
 (def ui-number-format (interop/react-factory NumberFormat))
 
@@ -63,7 +63,7 @@
         (or validation-message "Invalid value")))))
 
 (defsc ItemListItem [this {:ui/keys   [new? saving?]
-                           :item/keys [id category]
+                           :item/keys [id category in-stock]
                            :as        props}]
   {:query       [:ui/new?
                  :ui/saving?
@@ -81,14 +81,14 @@
       (td
         (ui-dropdown {:options  category-options
                       :search   true
-                      :onChange (fn [evt data]
-                                  (comp/transact! this [(fs/mark-complete! {:field :item/title})
-                                                        :item-list/all-items])
-                                  (m/set-value! this :item/category [:category/id (.-value data)]))
+                      :onChange (fn [evt data] (m/set-value! this :item/category [:category/id (.-value data)]))
                       :value    (:category/id category)}))
       (table-cell-field this :item/in-stock {:validation-message "Quantity must be 0 or more."
                                              :type               "number"
-                                             :onChange           #(m/set-integer! this :item/in-stock :event %)})
+                                             :value-xform        str
+                                             :onChange           (fn [evt]
+                                                                   (m/set-integer! this :item/in-stock :event evt)
+                                                                   (comp/transact! this [:item-list/all-items]))})
       (table-cell-field this :item/price {:validation-message "Price must be a positive amount."
                                           :input-tag          ui-money-input
                                           :onChange           #(m/set-value! this :item/price %)})
@@ -105,8 +105,8 @@
                                (comp/transact! this [(item/try-save-item {:item/id id :diff diff})])))} "Save")
               (button :.ui.inline.secondary.button
                 {:onClick (fn [] (if new?
-                                   (comp/transact! this [(item/remove-item {:item/id id})])
-                                   (comp/transact! this [(fs/reset-form! {})])))}
+                                   (comp/transact! this [(item/remove-item {:item/id id}) :item-list/all-items])
+                                   (comp/transact! this [(fs/reset-form! {}) :item-list/all-items])))}
                 "Undo"))))))))
 
 (def ui-item-list-item (comp/factory ItemListItem {:keyfn :item/id}))
@@ -115,10 +115,18 @@
   {:query         [{:item-list/all-items (comp/get-query ItemListItem)}]
    :initial-state {:item-list/all-items []}
    :ident         (fn [] [:component/id ::item-list])}
-  (table :.ui.table
-    (thead (tr (th "Title") (th "Category") (th "# In Stock") (th "Price") (th "Row Action")))
-    (tbody (map ui-item-list-item all-items))
-    (tfoot (tr (th {:colSpan 5}
+  (let [total (reduce
+                (fn [amt {:item/keys [in-stock]}]
+                  (+ amt in-stock))
+                0
+                all-items)]
+    (table :.ui.table
+      (thead (tr (th "Title") (th "Category") (th "# In Stock") (th "Price") (th "Row Action")))
+      (tbody (map ui-item-list-item all-items))
+      (tfoot (tr
+               ;(th "") (th "") (th "") (th "")
+               (th "") (th "Items in Stock:") (th total) (th "")
+               (th
                  (button :.ui.primary.icon.button
                    {:onClick (fn []
                                (merge/merge-component! this ItemListItem
@@ -128,14 +136,13 @@
                                   :item/in-stock 0
                                   :item/price    (math/bigdecimal "0")}
                                  :append [:component/id :app.client/item-list :item-list/all-items]))}
-                   (dom/i :.plus.icon)))))))
+                   (dom/i :.plus.icon))))))))
 
-(def ui-item-list (comp/factory ItemList {:keyfn :item-list/all-items}))
+(def ui-item-list (comp/factory ItemList))
 
 (defsc Root [_ {:root/keys [item-list]}]
   {:query         [{:root/item-list (comp/get-query ItemList)}]
    :initial-state {:root/item-list {}}}
-
   (div :.ui.container.segment
     (h3 "Inventory Items")
     (ui-item-list item-list)))
@@ -159,6 +166,7 @@
                                                   (or
                                                     #_(has-reader-error? body)
                                                     (not= 200 status-code)))
+                              ;:optimized-render! kr/render!
                               :client-did-mount (fn [app]
                                                   (df/load app :item/all-items
                                                     ItemListItem
