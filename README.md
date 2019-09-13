@@ -18,6 +18,7 @@ Tags of interest for the files at the end of:
 * `forms-part-3` : Part 12, Subforms and entity ownership
 * `forms-final` : Part 13, Finishing up the forms
 * `form-save-sql`: Part 13, final part of video.
+* `rendering-part-2`: Part 14, Rendering Revisited.
 
 If you are relatively new to Git, you would access these as 
 follows:
