@@ -1,179 +1,103 @@
 (ns app.client
   (:require
-    [app.math :as math]
-    ["react-number-format" :as NumberFormat]
-    [com.wsscode.pathom.core :as p]
+    [goog.events :as events]
     [com.fulcrologic.semantic-ui.modules.dropdown.ui-dropdown :refer [ui-dropdown]]
     [com.fulcrologic.fulcro.application :as app]
-    [com.fulcrologic.fulcro.algorithms.react-interop :as interop]
+    [com.fulcrologic.fulcro.dom.html-entities :as ent]
     [com.fulcrologic.fulcro.algorithms.data-targeting :as target]
-    [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.dom :as dom :refer [div ul li button h3 label a input table tr td th thead tbody tfoot]]
     [com.fulcrologic.fulcro.networking.http-remote :as http]
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
     [com.fulcrologic.fulcro.data-fetch :as df]
-    [app.model.item :as item]
+    [com.fulcrologic.fulcro.routing.dynamic-routing :as dr :refer [defrouter]]
+    [app.model.session :as session :refer [CurrentUser ui-current-user]]
     [com.fulcrologic.fulcro.dom.events :as evt]
-    [com.fulcrologic.fulcro.algorithms.form-state :as fs]
-    [com.fulcrologic.fulcro.algorithms.merge :as merge]
-    [clojure.set :as set]
-    [com.fulcrologic.fulcro.rendering.keyframe-render :as kr]
-    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
-    [taoensso.timbre :as log]))
+    [pushy.core :as pushy]
+    [taoensso.timbre :as log]
+    [clojure.string :as str]))
 
-(def ui-number-format (interop/react-factory NumberFormat))
-
-(defn ui-money-input
-  "Render a money input component. Props can contain:
-
-  :value - The current controlled value (as a bigdecimal)
-  :onChange - A (fn [bigdec]) that is called on changes"
-  [{:keys [value
-           onBlur
-           onChange]}]
-  (let [attrs {:thousandSeparator true
-               :prefix            "$"
-               :value             (math/bigdec->str value)
-               :onBlur            (fn [] (when onBlur (onBlur)))
-               :onValueChange     (fn [v]
-                                    (let [str-value (.-value v)]
-                                      (when (and (seq str-value) onChange)
-                                        (onChange (math/bigdecimal str-value)))))}]
-    (ui-number-format attrs)))
-
-(defsc ItemCategory [this {:keys [:category/id] :as props}]
-  {:query       [:category/id
-                 fs/form-config-join]
-   :form-fields #{:category/id}
-   :ident       :category/id})
-
-(defn table-cell-field [this field {:keys [onChange validation-message input-tag value-xform type]}]
-  (let [props         (comp/props this)
-        value         (get props field "")
-        input-factory (or input-tag dom/input)
-        xform         (or value-xform identity)]
-    (td
-      (input-factory (cond-> {:value    (xform value)
-                              :onChange (fn [evt] (when onChange
-                                                    (onChange evt)))}
-                       type (assoc :type type)))
-      (div :.ui.left.pointing.red.basic.label
-        {:classes [(when (not= :invalid (item/item-validator props field)) "hidden")]}
-        (or validation-message "Invalid value")))))
-
-(defsc ItemListItem [this {:ui/keys   [new? saving?]
-                           :item/keys [id category in-stock]
-                           :as        props}]
-  {:query       [:ui/new?
-                 :ui/saving?
-                 :item/id :item/title :item/in-stock :item/price
-                 {:item/category (comp/get-query ItemCategory)}
-                 [:category/options '_]
-                 fs/form-config-join]
-   :form-fields #{:item/title :item/in-stock :item/price :item/category}
-   :pre-merge   (fn [{:keys [data-tree]}] (fs/add-form-config ItemListItem data-tree))
-   :ident       :item/id}
-  (let [category-options (get props :category/options)]
-    (tr
-      (table-cell-field this :item/title {:validation-message "Title must not be empty"
-                                          :onChange           #(m/set-string! this :item/title :event %)})
-      (td
-        (ui-dropdown {:options  category-options
-                      :search   true
-                      :onChange (fn [evt data] (m/set-value! this :item/category [:category/id (.-value data)]))
-                      :value    (:category/id category)}))
-      (table-cell-field this :item/in-stock {:validation-message "Quantity must be 0 or more."
-                                             :type               "number"
-                                             :value-xform        str
-                                             :onChange           (fn [evt]
-                                                                   (m/set-integer! this :item/in-stock :event evt)
-                                                                   (comp/transact! this [:item-list/all-items]))})
-      (table-cell-field this :item/price {:validation-message "Price must be a positive amount."
-                                          :input-tag          ui-money-input
-                                          :onChange           #(m/set-value! this :item/price %)})
-
-      (td
-        (let [visible? (or new? (fs/dirty? props))]
-          (when visible?
-            (div :.ui.buttons
-              (button :.ui.inline.primary.button
-                {:classes  [(when saving? "loading")]
-                 :disabled (= :invalid (item/item-validator props))
-                 :onClick  (fn []
-                             (let [diff (fs/dirty-fields props false {:new-entity? new?})]
-                               (comp/transact! this [(item/try-save-item {:item/id id :diff diff})])))} "Save")
-              (button :.ui.inline.secondary.button
-                {:onClick (fn [] (if new?
-                                   (comp/transact! this [(item/remove-item {:item/id id}) :item-list/all-items])
-                                   (comp/transact! this [(fs/reset-form! {}) :item-list/all-items])))}
-                "Undo"))))))))
-
-(def ui-item-list-item (comp/factory ItemListItem {:keyfn :item/id}))
-
-(defsc ItemList [this {:item-list/keys [all-items] :as props}]
-  {:query         [{:item-list/all-items (comp/get-query ItemListItem)}]
-   :initial-state {:item-list/all-items []}
-   :ident         (fn [] [:component/id ::item-list])}
-  (let [total (reduce
-                (fn [amt {:item/keys [in-stock]}]
-                  (+ amt in-stock))
-                0
-                all-items)]
-    (table :.ui.table
-      (thead (tr (th "Title") (th "Category") (th "# In Stock") (th "Price") (th "Row Action")))
-      (tbody (map ui-item-list-item all-items))
-      (tfoot (tr
-               ;(th "") (th "") (th "") (th "")
-               (th "") (th "Items in Stock:") (th total) (th "")
-               (th
-                 (button :.ui.primary.icon.button
-                   {:onClick (fn []
-                               (merge/merge-component! this ItemListItem
-                                 {:ui/new?       true
-                                  :item/id       (tempid/tempid)
-                                  :item/title    ""
-                                  :item/in-stock 0
-                                  :item/price    (math/bigdecimal "0")}
-                                 :append [:component/id :app.client/item-list :item-list/all-items]))}
-                   (dom/i :.plus.icon))))))))
-
-(def ui-item-list (comp/factory ItemList))
-
-(defsc Root [_ {:root/keys [item-list]}]
-  {:query         [{:root/item-list (comp/get-query ItemList)}]
-   :initial-state {:root/item-list {}}}
+(defsc LoginForm [this {:ui/keys [email password] :as props}]
+  {:query         [:ui/email :ui/password]
+   :ident         (fn [] [:component/id :login])
+   :route-segment ["login"]
+   :initial-state {:ui/email    "foo@bar.com"
+                   :ui/password "letmein"}}
   (div :.ui.container.segment
-    (h3 "Inventory Items")
-    (ui-item-list item-list)))
+    (dom/div :.ui.form
+      (div :.field
+        (label "Username")
+        (input {:value email :onChange #(m/set-string! this :ui/email :event %)}))
+      (div :.field
+        (label "Password")
+        (input {:type     "password"
+                :value    password
+                :onChange #(m/set-string! this :ui/password :event %)}))
+      (button :.ui.primary.button
+        {:onClick #(comp/transact! this [(session/login {:user/email    email
+                                                         :user/password password})])}
+        "Login"))))
 
-(defsc Category [_ _]
-  {:query [:category/id :category/name]
-   :ident :category/id})
+(defsc Home [this props]
+  {:query         [:pretend-data]
+   :ident         (fn [] [:component/id :home])
+   :route-segment ["home"]
+   :initial-state {}}
+  (dom/div :.ui.container.segment
+    (h3 "Home Screen")))
 
-(defn has-reader-error? [v]
-  (cond
-    (keyword? v) (= v ::p/reader-error)
-    (vector? v) (boolean (some has-reader-error? v))
-    (map? v) (boolean
-               (or
-                 (some has-reader-error? (vals v))
-                 (some has-reader-error? (keys v))))
-    :else false))
+(defsc Settings [this props]
+  {:query         [:pretend-data]
+   :ident         (fn [] [:component/id :settings])
+   :route-segment ["settings"]
+   :initial-state {}}
+  (dom/div :.ui.container.segment
+    (h3 "Settings Screen")))
+
+(defrouter MainRouter [this props]
+  {:router-targets [LoginForm Home Settings]})
+
+(def ui-main-router (comp/factory MainRouter))
+
+(defsc Root [_ {:root/keys    [ready? router]
+                :session/keys [current-user]}]
+  {:query         [:root/ready? {:root/router (comp/get-query MainRouter)}
+                   {:session/current-user (comp/get-query CurrentUser)}]
+   :initial-state {:root/router {}}}
+  (div
+    (div :.ui.top.fixed.menu
+      (div :.item
+        (div :.content "My Cool App"))
+      (div :.item
+        (div :.content (a {:href "/home"} "Home")))
+      (div :.item
+        (div :.content (a {:href "/settings"} "Settings")))
+      (div :.right.floated.item
+        (ui-current-user current-user)))
+    (div :.ui.grid {:style {:marginTop "4em"}}
+      (if ready?
+        (ui-main-router router)
+        (div :.ui.loader.active)))))
+
+(defmutation finish-login [_]
+  (action [{:keys [state]}]
+    (swap! state (fn [s]
+                   (-> s
+                     (assoc :root/ready? true))))))
+
+(declare APP)
+
+(defonce history (pushy/pushy (fn [p]
+                                (let [route-segments (vec (rest (str/split p "/")))]
+                                  (dr/change-route APP route-segments)
+                                  (js/console.log route-segments))) identity))
 
 (defonce APP (app/fulcro-app {:remotes          {:remote (http/fulcro-http-remote {})}
-                              :remote-error?    (fn [{:keys [status-code body]}]
-                                                  (or
-                                                    #_(has-reader-error? body)
-                                                    (not= 200 status-code)))
-                              ;:optimized-render! kr/render!
                               :client-did-mount (fn [app]
-                                                  (df/load app :item/all-items
-                                                    ItemListItem
-                                                    {:target [:component/id ::item-list :item-list/all-items]})
-                                                  (df/load app :category/all-categories
-                                                    Category
-                                                    {:post-mutation `item/create-category-options}))}))
+                                                  (pushy/start! history)
+                                                  (dr/initialize! app)
+                                                  (df/load! app :session/current-user CurrentUser
+                                                    {:post-mutation `finish-login}))}))
 
 (defn ^:export init []
   (app/mount! APP Root "app"))

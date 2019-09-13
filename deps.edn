@@ -3,6 +3,7 @@
  :deps    {com.fulcrologic/fulcro              {:mvn/version "3.0.0-beta-16"}
            com.fulcrologic/semantic-ui-wrapper {:mvn/version "1.0.0"}
            ring/ring-core                      {:mvn/version "1.7.1"}
+           kibu/pushy                          {:mvn/version "0.3.8"}
            http-kit                            {:mvn/version "2.3.0"}
            com.wsscode/pathom                  {:mvn/version "2.2.24"}}
 
