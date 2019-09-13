@@ -1,40 +1,49 @@
 (ns app.client
   (:require
-    [goog.events :as events]
+    [app.client-app :refer [APP]]
+    [app.routing :as routing]
     [com.fulcrologic.semantic-ui.modules.dropdown.ui-dropdown :refer [ui-dropdown]]
     [com.fulcrologic.fulcro.application :as app]
-    [com.fulcrologic.fulcro.dom.html-entities :as ent]
-    [com.fulcrologic.fulcro.algorithms.data-targeting :as target]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.dom :as dom :refer [div ul li button h3 label a input table tr td th thead tbody tfoot]]
-    [com.fulcrologic.fulcro.networking.http-remote :as http]
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
     [com.fulcrologic.fulcro.data-fetch :as df]
     [com.fulcrologic.fulcro.routing.dynamic-routing :as dr :refer [defrouter]]
     [app.model.session :as session :refer [CurrentUser ui-current-user]]
-    [com.fulcrologic.fulcro.dom.events :as evt]
-    [pushy.core :as pushy]
     [taoensso.timbre :as log]
-    [clojure.string :as str]))
+    [com.fulcrologic.fulcro.dom.events :as evt]))
 
-(defsc LoginForm [this {:ui/keys [email password] :as props}]
-  {:query         [:ui/email :ui/password]
+(defsc LoginForm [this {:ui/keys [email password error? busy?] :as props}]
+  {:query         [:ui/email :ui/password :ui/error? :ui/busy?]
    :ident         (fn [] [:component/id :login])
    :route-segment ["login"]
    :initial-state {:ui/email    "foo@bar.com"
+                   :ui/error?   false
+                   :ui/busy?    false
                    :ui/password "letmein"}}
   (div :.ui.container.segment
-    (dom/div :.ui.form
+    (dom/div :.ui.form {:classes [(when error? "error")]}
       (div :.field
         (label "Username")
-        (input {:value email :onChange #(m/set-string! this :ui/email :event %)}))
+        (input {:value    email
+                :disabled busy?
+                :onChange #(m/set-string! this :ui/email :event %)}))
       (div :.field
         (label "Password")
-        (input {:type     "password"
-                :value    password
-                :onChange #(m/set-string! this :ui/password :event %)}))
+        (input {:type      "password"
+                :value     password
+                :disabled  busy?
+                :onKeyDown (fn [evt]
+                             (when (evt/enter-key? evt)
+                               (comp/transact! this [(session/login {:user/email    email
+                                                                     :user/password password})])))
+                :onChange  #(m/set-string! this :ui/password :event %)}))
+      (div :.ui.error.message
+        (div :.content
+          "Invalid Credentials"))
       (button :.ui.primary.button
-        {:onClick #(comp/transact! this [(session/login {:user/email    email
+        {:classes [(when busy? "loading")]
+         :onClick #(comp/transact! this [(session/login {:user/email    email
                                                          :user/password password})])}
         "Login"))))
 
@@ -64,41 +73,35 @@
   {:query         [:root/ready? {:root/router (comp/get-query MainRouter)}
                    {:session/current-user (comp/get-query CurrentUser)}]
    :initial-state {:root/router {}}}
-  (div
-    (div :.ui.top.fixed.menu
-      (div :.item
-        (div :.content "My Cool App"))
-      (div :.item
-        (div :.content (a {:href "/home"} "Home")))
-      (div :.item
-        (div :.content (a {:href "/settings"} "Settings")))
-      (div :.right.floated.item
-        (ui-current-user current-user)))
-    (div :.ui.grid {:style {:marginTop "4em"}}
-      (if ready?
-        (ui-main-router router)
-        (div :.ui.loader.active)))))
+  (let [logged-in? (:user/valid? current-user)]
+    (div
+      (div :.ui.top.fixed.menu
+        (div :.item
+          (div :.content "My Cool App"))
+        (when logged-in?
+          (comp/fragment
+            (div :.item
+              (div :.content (a {:href "/home"} "Home")))
+            (div :.item
+              (div :.content (a {:href "/settings"} "Settings")))))
+        (div :.right.floated.item
+          (ui-current-user current-user)))
+      (when ready?
+        (div :.ui.grid {:style {:marginTop "4em"}}
+          (ui-main-router router))))))
 
 (defmutation finish-login [_]
-  (action [{:keys [state]}]
-    (swap! state (fn [s]
-                   (-> s
-                     (assoc :root/ready? true))))))
+  (action [{:keys [app state]}]
+    (let [logged-in? (get-in @state [:session/current-user :user/valid?])]
+      (when-not logged-in?
+        (routing/route-to! "/login"))
+      (swap! state assoc :root/ready? true))))
 
-(declare APP)
-
-(defonce history (pushy/pushy (fn [p]
-                                (let [route-segments (vec (rest (str/split p "/")))]
-                                  (dr/change-route APP route-segments)
-                                  (js/console.log route-segments))) identity))
-
-(defonce APP (app/fulcro-app {:remotes          {:remote (http/fulcro-http-remote {})}
-                              :client-did-mount (fn [app]
-                                                  (pushy/start! history)
-                                                  (dr/initialize! app)
-                                                  (df/load! app :session/current-user CurrentUser
-                                                    {:post-mutation `finish-login}))}))
-
-(defn ^:export init []
+(defn refresh []
   (app/mount! APP Root "app"))
 
+(defn ^:export start []
+  (app/mount! APP Root "app")
+  (dr/initialize! APP)
+  (routing/start!)
+  (df/load! APP :session/current-user CurrentUser {:post-mutation `finish-login}))
