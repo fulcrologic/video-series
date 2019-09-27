@@ -57,11 +57,12 @@
   (action [{:keys [app state]}]
     (swap! state assoc-in [:item/id id :ui/saving?] true))
   (remote [env] true)
-  (ok-action [{:keys [state]}]
-    (swap! state (fn [s]
-                   (-> s
-                     (update-in [:item/id id] assoc :ui/new? false :ui/saving? false)
-                     (fs/entity->pristine* [:item/id id])))))
+  (ok-action [{:keys [state tempid->realid] :as env}]
+    (let [id (tempid->realid id)]
+      (swap! state (fn [s]
+                     (-> s
+                       (update-in [:item/id id] assoc :ui/new? false :ui/saving? false)
+                       (fs/entity->pristine* [:item/id id]))))))
   (error-action [{:keys [state]}]
     (js/alert "Failed to save item")
     (swap! state (fn [s]

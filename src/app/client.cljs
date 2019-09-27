@@ -87,6 +87,7 @@
                                   (m/set-value! this :item/category [:category/id (.-value data)]))
                       :value    (:category/id category)}))
       (table-cell-field this :item/in-stock {:validation-message "Quantity must be 0 or more."
+                                             :value-xform        str
                                              :type               "number"
                                              :onChange           #(m/set-integer! this :item/in-stock :event %)})
       (table-cell-field this :item/price {:validation-message "Price must be a positive amount."

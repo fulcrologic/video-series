@@ -1,6 +1,6 @@
 {:paths   ["src" "resources"]
 
- :deps    {com.fulcrologic/fulcro              {:mvn/version "3.0.0-beta-15"}
+ :deps    {com.fulcrologic/fulcro              {:local/root "/Users/tonykay/fulcrologic/fulcro"} #_{:mvn/version "3.0.0"}
            com.fulcrologic/semantic-ui-wrapper {:mvn/version "1.0.0"}
            ring/ring-core                      {:mvn/version "1.7.1"}
            http-kit                            {:mvn/version "2.3.0"}
