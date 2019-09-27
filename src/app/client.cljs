@@ -2,7 +2,10 @@
   (:require
     [app.client-app :refer [APP]]
     [app.routing :as routing]
+    [app.ui.dynamic-menu :as dynamic-menu]
     [com.fulcrologic.semantic-ui.modules.dropdown.ui-dropdown :refer [ui-dropdown]]
+    [com.fulcrologic.semantic-ui.modules.dropdown.ui-dropdown-menu :refer [ui-dropdown-menu]]
+    [com.fulcrologic.semantic-ui.modules.dropdown.ui-dropdown-item :refer [ui-dropdown-item]]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.dom :as dom :refer [div ul li button h3 label a input table tr td th thead tbody tfoot]]
@@ -11,7 +14,8 @@
     [com.fulcrologic.fulcro.routing.dynamic-routing :as dr :refer [defrouter]]
     [app.model.session :as session :refer [CurrentUser ui-current-user]]
     [taoensso.timbre :as log]
-    [com.fulcrologic.fulcro.dom.events :as evt]))
+    [com.fulcrologic.fulcro.dom.events :as evt]
+    [app.routing :as r]))
 
 (defsc LoginForm [this {:ui/keys [email password error? busy?] :as props}]
   {:query         [:ui/email :ui/password :ui/error? :ui/busy?]
@@ -56,34 +60,48 @@
     (h3 "Home Screen")))
 
 (defsc Settings [this props]
-  {:query         [:pretend-data]
-   :ident         (fn [] [:component/id :settings])
-   :route-segment ["settings"]
-   :initial-state {}}
+  {:query                [:pretend-data]
+   :ident                (fn [] [:component/id :settings])
+   :route-segment        ["settings"]
+   :componentDidMount    (fn [this]
+                           (comp/transact! this [(dynamic-menu/set-menu (dynamic-menu/menu
+                                                                          (dynamic-menu/link "Home" `r/route-to {:route-string "/home"})
+                                                                          (dynamic-menu/link "Settings" `r/route-to {:route-string "/settings"})
+                                                                          (dynamic-menu/link "Other" `other)))]))
+   :componentWillUnmount (fn [this]
+                           (comp/transact! this [(dynamic-menu/set-menu (dynamic-menu/menu
+                                                                          (dynamic-menu/link "Home" `r/route-to {:route-string "/home"})
+                                                                          (dynamic-menu/link "Settings" `r/route-to {:route-string "/settings"})))]))
+   :initial-state        {}}
   (dom/div :.ui.container.segment
     (h3 "Settings Screen")))
 
-(defrouter MainRouter [this props]
-  {:router-targets [LoginForm Home Settings]})
+(defrouter MainRouter [_ _] {:router-targets [LoginForm Home Settings]})
 
 (def ui-main-router (comp/factory MainRouter))
 
-(defsc Root [_ {:root/keys    [ready? router]
+(defsc Root [_ {:root/keys    [ready? router dynamic-menu]
                 :session/keys [current-user]}]
   {:query         [:root/ready? {:root/router (comp/get-query MainRouter)}
+                   {:root/dynamic-menu (comp/get-query dynamic-menu/DynamicMenu)}
                    {:session/current-user (comp/get-query CurrentUser)}]
-   :initial-state {:root/router {}}}
+   :initial-state (fn [_]
+                    {:root/router       (comp/get-initial-state MainRouter)
+                     :root/dynamic-menu (dynamic-menu/menu
+                                          (dynamic-menu/link "Home" `r/route-to {:route-string "/home"})
+                                          (dynamic-menu/link "Settings" `r/route-to {:route-string "/settings"}))})}
   (let [logged-in? (:user/valid? current-user)]
     (div
       (div :.ui.top.fixed.menu
         (div :.item
           (div :.content "My Cool App"))
         (when logged-in?
-          (comp/fragment
-            (div :.item
-              (div :.content (a {:href "/home"} "Home")))
-            (div :.item
-              (div :.content (a {:href "/settings"} "Settings")))))
+          (dynamic-menu/ui-dynamic-menu dynamic-menu)
+          #_(comp/fragment
+              (div :.item
+                (div :.content (a {:href "/home"} "Home")))
+              (div :.item
+                (div :.content (a {:href "/settings"} "Settings")))))
         (div :.right.floated.item
           (ui-current-user current-user)))
       (when ready?
@@ -102,6 +120,5 @@
 
 (defn ^:export start []
   (app/mount! APP Root "app")
-  (dr/initialize! APP)
   (routing/start!)
   (df/load! APP :session/current-user CurrentUser {:post-mutation `finish-login}))
