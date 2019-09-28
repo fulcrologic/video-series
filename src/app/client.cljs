@@ -64,14 +64,9 @@
    :ident                (fn [] [:component/id :settings])
    :route-segment        ["settings"]
    :componentDidMount    (fn [this]
-                           (comp/transact! this [(dynamic-menu/set-menu (dynamic-menu/menu
-                                                                          (dynamic-menu/link "Home" `r/route-to {:route-string "/home"})
-                                                                          (dynamic-menu/link "Settings" `r/route-to {:route-string "/settings"})
-                                                                          (dynamic-menu/link "Other" `other)))]))
-   :componentWillUnmount (fn [this]
-                           (comp/transact! this [(dynamic-menu/set-menu (dynamic-menu/menu
-                                                                          (dynamic-menu/link "Home" `r/route-to {:route-string "/home"})
-                                                                          (dynamic-menu/link "Settings" `r/route-to {:route-string "/settings"})))]))
+                           (dynamic-menu/set-menu! this (dynamic-menu/menu
+                                                          (dynamic-menu/link "Other" `other))))
+   :componentWillUnmount (fn [this] (dynamic-menu/clear-menu! this))
    :initial-state        {}}
   (dom/div :.ui.container.segment
     (h3 "Settings Screen")))
@@ -87,21 +82,19 @@
                    {:session/current-user (comp/get-query CurrentUser)}]
    :initial-state (fn [_]
                     {:root/router       (comp/get-initial-state MainRouter)
-                     :root/dynamic-menu (dynamic-menu/menu
-                                          (dynamic-menu/link "Home" `r/route-to {:route-string "/home"})
-                                          (dynamic-menu/link "Settings" `r/route-to {:route-string "/settings"}))})}
+                     :root/dynamic-menu (dynamic-menu/menu)})}
   (let [logged-in? (:user/valid? current-user)]
     (div
       (div :.ui.top.fixed.menu
         (div :.item
           (div :.content "My Cool App"))
         (when logged-in?
-          (dynamic-menu/ui-dynamic-menu dynamic-menu)
-          #_(comp/fragment
-              (div :.item
-                (div :.content (a {:href "/home"} "Home")))
-              (div :.item
-                (div :.content (a {:href "/settings"} "Settings")))))
+          (comp/fragment
+            (div :.item
+              (div :.content (a {:href "/home"} "Home")))
+            (div :.item
+              (div :.content (a {:href "/settings"} "Settings")))
+            (dynamic-menu/ui-dynamic-menu dynamic-menu)))
         (div :.right.floated.item
           (ui-current-user current-user)))
       (when ready?

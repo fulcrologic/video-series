@@ -58,3 +58,9 @@
     (swap! state assoc-in [:component/id ::dynamic-menu] menu))
   (refresh [_]
     [:dynamic-menu/items]))
+
+(defn set-menu! [this menu]
+  (comp/transact! this [(set-menu menu)]))
+
+(defn clear-menu! [this]
+  (comp/transact! this [(set-menu (menu))]))
