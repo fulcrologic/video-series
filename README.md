@@ -20,7 +20,8 @@ Tags of interest for the files at the end of:
 * `form-save-sql`: Part 13, final part of video.
 * `rendering-part-2`: Part 14, Rendering Revisited.
 * `sessions-and-routing`: Part 15, sessions and routing
-* `dynamic-ui-as-data`: Driving dynamic UI with data.
+* `dynamic-ui-as-data`: Part 16, Driving dynamic UI with data.
+* `ui-state-machine`: Parts 17 + 18, UI State Machines
 
 If you are relatively new to Git, you would access these as 
 follows:
