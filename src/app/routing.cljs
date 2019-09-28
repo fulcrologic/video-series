@@ -10,10 +10,8 @@
 (defonce history (pushy/pushy
                    (fn [p]
                      (let [route-segments (vec (rest (str/split p "/")))]
-                       (log/spy :info route-segments)
                        (dr/change-route APP route-segments)))
                    identity))
-
 
 (defn start! []
   (pushy/start! history))

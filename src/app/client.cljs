@@ -15,41 +15,49 @@
     [app.model.session :as session :refer [CurrentUser ui-current-user]]
     [taoensso.timbre :as log]
     [com.fulcrologic.fulcro.dom.events :as evt]
-    [app.routing :as r]))
+    [app.routing :as r]
+    [com.fulcrologic.fulcro.ui-state-machines :as uism]))
 
-(defsc LoginForm [this {:ui/keys [email password error? busy?] :as props}]
-  {:query         [:ui/email :ui/password :ui/error? :ui/busy?]
+(defsc LoginForm [this {:ui/keys [email password] :as props}]
+  {:query         [:ui/email :ui/password [::uism/asm-id '_]]
    :ident         (fn [] [:component/id :login])
    :route-segment ["login"]
    :initial-state {:ui/email    "foo@bar.com"
-                   :ui/error?   false
-                   :ui/busy?    false
                    :ui/password "letmein"}}
-  (div :.ui.container.segment
-    (dom/div :.ui.form {:classes [(when error? "error")]}
-      (div :.field
-        (label "Username")
-        (input {:value    email
-                :disabled busy?
-                :onChange #(m/set-string! this :ui/email :event %)}))
-      (div :.field
-        (label "Password")
-        (input {:type      "password"
-                :value     password
-                :disabled  busy?
-                :onKeyDown (fn [evt]
-                             (when (evt/enter-key? evt)
-                               (comp/transact! this [(session/login {:user/email    email
-                                                                     :user/password password})])))
-                :onChange  #(m/set-string! this :ui/password :event %)}))
-      (div :.ui.error.message
-        (div :.content
-          "Invalid Credentials"))
-      (button :.ui.primary.button
-        {:classes [(when busy? "loading")]
-         :onClick #(comp/transact! this [(session/login {:user/email    email
-                                                         :user/password password})])}
-        "Login"))))
+  (let [current-state    (uism/get-active-state this ::session/sessions)
+        busy?            (= :state/checking-credentials current-state)
+        bad-credentials? (= :state/bad-credentials current-state)
+        error?           (= :state/server-failed current-state)]
+    (div :.ui.container.segment
+      (dom/div :.ui.form {:classes [(when (or bad-credentials? error?) "error")]}
+        (div :.field
+          (label "Username")
+          (input {:value    email
+                  :disabled busy?
+                  :onChange #(m/set-string! this :ui/email :event %)}))
+        (div :.field
+          (label "Password")
+          (input {:type      "password"
+                  :value     password
+                  :disabled  busy?
+                  :onKeyDown (fn [evt]
+                               (when (evt/enter-key? evt)
+                                 (uism/trigger! this ::session/sessions :event/login {:user/email    email
+                                                                                      :user/password password})))
+                  :onChange  #(m/set-string! this :ui/password :event %)}))
+        (when bad-credentials?
+          (div :.ui.error.message
+            (div :.content
+              "Invalid Credentials")))
+        (when error?
+          (div :.ui.error.message
+            (div :.content
+              "There was a server error. Please try again.")))
+        (button :.ui.primary.button
+          {:classes [(when busy? "loading")]
+           :onClick #(uism/trigger! this ::session/sessions :event/login {:user/email    email
+                                                                          :user/password password})}
+          "Login")))))
 
 (defsc Home [this props]
   {:query         [:pretend-data]
@@ -75,15 +83,19 @@
 
 (def ui-main-router (comp/factory MainRouter))
 
-(defsc Root [_ {:root/keys    [ready? router dynamic-menu]
-                :session/keys [current-user]}]
-  {:query         [:root/ready? {:root/router (comp/get-query MainRouter)}
+(defsc Root [this {:root/keys    [router dynamic-menu]
+                   :session/keys [current-user]}]
+  {:query         [{:root/router (comp/get-query MainRouter)}
+                   [::uism/asm-id ::session/sessions]
                    {:root/dynamic-menu (comp/get-query dynamic-menu/DynamicMenu)}
                    {:session/current-user (comp/get-query CurrentUser)}]
    :initial-state (fn [_]
-                    {:root/router       (comp/get-initial-state MainRouter)
-                     :root/dynamic-menu (dynamic-menu/menu)})}
-  (let [logged-in? (:user/valid? current-user)]
+                    {:root/router          (comp/get-initial-state MainRouter)
+                     :session/current-user (comp/get-initial-state CurrentUser)
+                     :root/dynamic-menu    (dynamic-menu/menu)})}
+  (let [current-state (uism/get-active-state this ::session/sessions)
+        ready?        (not (contains? #{:initial :state/checking-existing-session} current-state))
+        logged-in?    (:user/valid? (log/spy :info current-user))]
     (div
       (div :.ui.top.fixed.menu
         (div :.item
@@ -101,17 +113,14 @@
         (div :.ui.grid {:style {:marginTop "4em"}}
           (ui-main-router router))))))
 
-(defmutation finish-login [_]
-  (action [{:keys [app state]}]
-    (let [logged-in? (get-in @state [:session/current-user :user/valid?])]
-      (when-not logged-in?
-        (routing/route-to! "/login"))
-      (swap! state assoc :root/ready? true))))
-
 (defn refresh []
   (app/mount! APP Root "app"))
 
 (defn ^:export start []
   (app/mount! APP Root "app")
   (routing/start!)
-  (df/load! APP :session/current-user CurrentUser {:post-mutation `finish-login}))
+  (uism/begin! APP session/session-machine ::session/sessions
+    {:actor/user       session/CurrentUser
+     :actor/login-form LoginForm}
+    {:desired-path (some-> js/window .-location .-pathname)}))
+
