@@ -128,7 +128,7 @@
                                (comp/transact! this [(add-new-item {:item/id (random-uuid)})]))}
                    (dom/i :.plus.icon)))))))
 
-(def ui-item-list (comp/factory ItemList {:keyfn :item-list/all-items}))
+(def ui-item-list (comp/factory ItemList {:keyfn (constantly ::ui-item-list)}))
 
 (defsc Root [_ {:root/keys [item-list]}]
   {:query         [{:root/item-list (comp/get-query ItemList)}]
