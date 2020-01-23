@@ -3,6 +3,8 @@
 This repository contains snapshots of the repository as it existed at various interesting points
 in the video series. These are represented as tags (see the "Branch" menu at the top of the file list).
 
+NOTE: I consider these files part of a "performance" (the video recordings).  They are *not* meant to be perfect examples of how you should build an application, but instead attempts to help you understand concepts and APIs.  Being the product of a performance I *know* there are imperfections, and I do *not* intend to correct them, because that could put things out of sync between the videos and these files.  You should *not* attempt to change the versions of any libraries used in these files, nor should you submit PRs to me to correct things like console warnings about things like React keys.  Code perfection is not the objective here: you should be concentrating on learning broad concepts.
+
 Tags of interest for the files at the end of:
 
 * `intro` : The intro video
