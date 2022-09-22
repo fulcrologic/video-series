@@ -5,3 +5,4 @@ resources/public/js
 .idea
 target
 .nrepl-port
+/video-series.iml
